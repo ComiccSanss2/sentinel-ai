@@ -1,0 +1,22 @@
+# Put Sentinel online with HTTPS:  docker compose up -d
+# 1. Point a domain (e.g. sentinel.yourcompany.com) to this server
+# 2. Replace the domain below in PUBLIC_URL and in Caddyfile
+services:
+  sentinel:
+    build: .
+    restart: unless-stopped
+    environment:
+      PUBLIC_URL: https://sentinel.yourcompany.com
+      COOKIE_SECURE: "1"
+    volumes:
+      - sentinel-data:/data
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    ports: ["80:80", "443:443"]
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile
+      - caddy-data:/data
+volumes:
+  sentinel-data:
+  caddy-data:

@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sign in · Sentinel-AI</title>
+<meta name="robots" content="noindex">
+<link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+<main class="auth">
+  <div class="box">
+    <a class="brand" href="index.html" style="padding:0"><svg width="32" height="32" viewBox="0 0 36 36" aria-hidden="true"><path d="M18 2l14 8v16l-14 8-14-8V10z" fill="#0E7490" fill-opacity=".3" stroke="#22D3EE" stroke-width="1.6"/><path d="M18 8v20" stroke="#22D3EE" stroke-width="2"/><circle cx="18" cy="18" r="4" fill="none" stroke="currentColor" stroke-width="1.6"/></svg><b>SENTINEL<span>-AI</span></b></a>
+
+    <!-- first run: create the company account -->
+    <section id="setup" class="hidden">
+      <h1>Set up Sentinel for your company</h1>
+      <p class="sec">You are the first person here, so you become the administrator. You can invite your colleagues afterwards.</p>
+      <form id="fSetup" novalidate autocomplete="off">
+        <label class="field">Company name<input class="inp" name="org" autocomplete="off" spellcheck="false" required placeholder="Acme Italia S.p.A."></label>
+        <label class="field">Your full name<input class="inp" name="name" autocomplete="off" spellcheck="false" required></label>
+        <label class="field">Work email<input class="inp" name="email" type="email" autocomplete="off" spellcheck="false" required></label>
+        <label class="field">Password (at least 10 characters)<input class="inp" name="password" type="password" autocomplete="new-password" required minlength="10"></label>
+        <div class="err" role="alert"></div>
+        <button class="btn primary" type="submit">Create my company account</button>
+      </form>
+      <p class="alt">Everything is stored on the computer or server running Sentinel, not in the cloud.</p>
+      <p class="alt">If your browser closes while you type, open <b>http://localhost:8787</b> in Microsoft Edge or Google Chrome instead.</p>
+    </section>
+
+    <!-- normal sign-in -->
+    <section id="login" class="hidden">
+      <h1>Sign in</h1>
+      <p class="sec">Welcome back. Sign in to see what your AI agents are doing.</p>
+      <form id="fLogin" novalidate>
+        <label class="field">Email<input class="inp" name="email" type="email" autocomplete="username" required></label>
+        <label class="field">Password<input class="inp" name="password" type="password" autocomplete="current-password" required></label>
+        <div class="err" role="alert"></div>
+        <button class="btn primary" type="submit">Sign in</button>
+      </form>
+      <p class="alt">No account? Ask an administrator of your company to invite you. Forgot your password? An administrator can disable your account and invite you again.</p>
+    </section>
+
+    <!-- invitation -->
+    <section id="invite" class="hidden">
+      <h1>Join <span id="iOrg"></span></h1>
+      <p class="sec">You were invited as <b id="iRole"></b> with <b id="iEmail"></b>. Choose your name and a password.</p>
+      <form id="fInvite" novalidate autocomplete="off">
+        <label class="field">Your full name<input class="inp" name="name" autocomplete="off" spellcheck="false" required></label>
+        <label class="field">Password (at least 10 characters)<input class="inp" name="password" type="password" autocomplete="new-password" required minlength="10"></label>
+        <div class="err" role="alert"></div>
+        <button class="btn primary" type="submit">Create my account</button>
+      </form>
+    </section>
+  </div>
+</main>
+<script>
+(function () {
+  var show = function (id) { ['setup', 'login', 'invite'].forEach(function (x) { document.getElementById(x).classList.toggle('hidden', x !== id); }); var f = document.querySelector('#' + id + ' input'); if (f) f.focus(); };
+  var api = function (method, path, body) {
+    return fetch(path, { method: method, credentials: 'same-origin', headers: { 'Content-Type': 'application/json', 'X-Sentinel': '1' }, body: body ? JSON.stringify(body) : undefined })
+      .then(function (r) { return r.json().catch(function () { return {}; }).then(function (d) { if (!r.ok) throw new Error(d.message || 'Something went wrong'); return d; }); });
+  };
+  var bind = function (formId, run) {
+    var f = document.getElementById(formId), err = f.querySelector('.err'), btn = f.querySelector('button');
+    f.addEventListener('submit', function (e) {
+      e.preventDefault(); err.textContent = ''; btn.disabled = true;
+      var data = {}; new FormData(f).forEach(function (v, k) { data[k] = String(v).trim ? (k === 'password' ? String(v) : String(v).trim()) : v; });
+      run(data).then(function () { location.href = 'app.html'; }).catch(function (x) { err.textContent = x.message; btn.disabled = false; });
+    });
+  };
+  var t = (location.hash.match(/invite=([\w-]+)/) || [])[1];
+  if (t) {
+    api('GET', '/api/invite/' + t).then(function (d) {
+      document.getElementById('iOrg').textContent = d.org; document.getElementById('iRole').textContent = d.role; document.getElementById('iEmail').textContent = d.email; show('invite');
+    }).catch(function (e) { show('login'); document.querySelector('#fLogin .err').textContent = e.message; });
+    bind('fInvite', function (d) { d.token = t; return api('POST', '/api/auth/accept-invite', d); });
+  } else {
+    api('GET', '/api/me').then(function () { location.href = 'app.html'; }).catch(function () {
+      api('GET', '/api/setup-status').then(function (s) { show(s.needsSetup ? 'setup' : 'login'); }).catch(function () {
+        show('login'); document.querySelector('#fLogin .err').textContent = 'Cannot reach the Sentinel server. Is the server window open?';
+      });
+    });
+  }
+  bind('fSetup', function (d) { return api('POST', '/api/auth/signup', d); });
+  bind('fLogin', function (d) { return api('POST', '/api/auth/login', d); });
+})();
+</script>
+</body>
+</html>

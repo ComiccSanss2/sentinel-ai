@@ -1,0 +1,13 @@
+{
+  "name": "sentinel-ai",
+  "version": "1.0.0",
+  "description": "Self-hosted auditor and emergency stop for AI agents",
+  "private": true,
+  "main": "server/server.js",
+  "engines": { "node": ">=18" },
+  "scripts": {
+    "start": "node server/server.js",
+    "example": "node examples/example-agent.mjs"
+  },
+  "license": "UNLICENSED"
+}

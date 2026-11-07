@@ -1,0 +1,4 @@
+# Caddy gets and renews the HTTPS certificate automatically
+sentinel.yourcompany.com {
+  reverse_proxy sentinel:8787
+}
